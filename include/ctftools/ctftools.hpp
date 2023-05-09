@@ -37,8 +37,29 @@ namespace ctf {
             DO_RULE_OF_5_DEFAULT(HttpResponse)
         };
 
-        HttpResponse Get(const std::string& url);
-        HttpResponse Post(const std::string& url, const char* data, size_t size);
+        HttpResponse Get(const std::string& url, const std::vector<std::string>& headers = {});
+        HttpResponse Post(const std::string& url, const char* data, size_t size, const std::vector<std::string>& headers = {});
+
+        class Session {
+        public:
+            DO_RULE_OF_5_NO_COPY(Session)
+
+            explicit Session();
+
+            HttpResponse Get(const std::string& url, const std::vector<std::string>& headers = {});
+            HttpResponse Post(const std::string& url, const char* data, size_t size, const std::vector<std::string>& headers = {});
+
+            void DumpCookies(std::string& cookie_header);
+
+        private:
+            void LoadCookies(const std::vector<std::string>& headers);
+
+            // TODO : Currently only support for HttpOnly cookies, no research was done for other types
+            // so they are ignored on encounter
+            // TODO : No support for additional parameters currently
+            // TODO : No idea what it's supposed to do when cookie/value is empty => I just skip it for now
+            std::unordered_map<std::string, std::string> cookies;
+        };
 
         class Random {
         public:

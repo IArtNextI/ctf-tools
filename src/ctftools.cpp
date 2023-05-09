@@ -5,10 +5,32 @@
 #include <curl/easy.h>
 #include <memory>
 
+//#define CTFTOOLSVERBOSE
+
 //-------------------------------------------------------------------------------------------------------------------------------
 // RAII wrapppers
 
 using Curl = std::unique_ptr<CURL, void(*)(CURL*)>;
+
+struct EasyCurlSlist {
+    DO_RULE_OF_5_NO_COPY(EasyCurlSlist)
+
+    explicit EasyCurlSlist() : slist(nullptr) {
+    }
+
+    ~EasyCurlSlist() {
+        curl_slist_free_all(slist);
+    }
+
+    void Append(const char* header) {
+        curl_slist* tmp = curl_slist_append(slist, header);
+        if (tmp) {
+            slist = tmp;
+        }
+    }
+
+    curl_slist* slist;
+};
 
 //-------------------------------------------------------------------------------------------------------------------------------
 // Curl callbacks
@@ -27,7 +49,7 @@ size_t AddToVector(char *ptr, size_t size, size_t nmemb, void *userdata) {
 // fast
 //-------------------------------------------------------------------------------------------------------------------------------
 // easy ~~ Http subsection
-ctf::easy::HttpResponse ctf::easy::Get(const std::string& url) {
+ctf::easy::HttpResponse ctf::easy::Get(const std::string& url, const std::vector<std::string>& headers) {
     Curl curl{curl_easy_init(), curl_easy_cleanup};
     HttpResponse result;
     curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
@@ -35,12 +57,20 @@ ctf::easy::HttpResponse ctf::easy::Get(const std::string& url) {
     curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &result.body);
     curl_easy_setopt(curl.get(), CURLOPT_HEADERFUNCTION, AddToVector);
     curl_easy_setopt(curl.get(), CURLOPT_HEADERDATA, &result.headers);
+    EasyCurlSlist slist;
+    for (auto &x : headers) {
+        slist.Append(x.c_str());
+    }
+    curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, slist.slist);
+#ifdef CTFTOOLSVERBOSE
+    curl_easy_setopt(curl.get(), CURLOPT_VERBOSE, 1);
+#endif
     curl_easy_perform(curl.get());
     curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &result.status_code);
     return std::move(result);
 }
 
-ctf::easy::HttpResponse ctf::easy::Post(const std::string& url, const char* data, size_t size) {
+ctf::easy::HttpResponse ctf::easy::Post(const std::string& url, const char* data, size_t size, const std::vector<std::string>& headers) {
     Curl curl{curl_easy_init(), curl_easy_cleanup};
     HttpResponse result;
     curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str());
@@ -51,9 +81,87 @@ ctf::easy::HttpResponse ctf::easy::Post(const std::string& url, const char* data
     curl_easy_setopt(curl.get(), CURLOPT_POST, 1);
     curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDS, data);
     curl_easy_setopt(curl.get(), CURLOPT_POSTFIELDSIZE_LARGE, size);
+    EasyCurlSlist slist;
+    for (auto &x : headers) {
+        slist.Append(x.c_str());
+    }
+    curl_easy_setopt(curl.get(), CURLOPT_HTTPHEADER, slist.slist);
+#ifdef CTFTOOLSVERBOSE
+    curl_easy_setopt(curl.get(), CURLOPT_VERBOSE, 1);
+#endif
     curl_easy_perform(curl.get());
     curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &result.status_code);
     return std::move(result);
+}
+
+ctf::easy::Session::Session() {
+}
+
+ctf::easy::HttpResponse ctf::easy::Session::Get(const std::string& url, const std::vector<std::string>& headers) {
+    HttpResponse result;
+    if (!cookies.empty()) {
+        std::string cookie_header;
+        DumpCookies(cookie_header);
+        result = ctf::easy::Get(url, {cookie_header});
+    }
+    else {
+        result = ctf::easy::Get(url);
+    }
+    LoadCookies(result.headers);
+    return std::move(result);
+}
+
+ctf::easy::HttpResponse ctf::easy::Session::Post(const std::string& url, const char* data, size_t size, const std::vector<std::string>& headers) {
+    HttpResponse result;
+    if (!cookies.empty()) {
+        std::string cookie_header;
+        DumpCookies(cookie_header);
+        result = ctf::easy::Post(url, data, size, {cookie_header});
+    }
+    else {
+        result = ctf::easy::Post(url, data, size);
+    }
+    LoadCookies(result.headers);
+    return std::move(result);
+}
+
+void ctf::easy::Session::DumpCookies(std::string& cookie_header) {
+    cookie_header = "Cookie: ";
+    if (cookies.empty()) {
+        return;
+    }
+    auto it = cookies.begin();
+    while (true) {
+        auto it_plus_one = it;
+        ++it_plus_one;
+        cookie_header += it->first + "=" + it->second;
+        if (it_plus_one != cookies.end()) {
+            cookie_header += "; ";
+            it = it_plus_one;
+        }
+        else {
+            break;
+        }
+    }
+}
+
+void ctf::easy::Session::LoadCookies(const std::vector<std::string>& headers) {
+    for (auto &x : headers) {
+        if (x.substr(0, 12) == "Set-Cookie: ") {
+            size_t name_start = x.find_first_of(' ');
+            size_t name_end = x.find_first_of('=');
+            size_t cookie_end = x.find_first_of(';');
+            if (name_start == std::string::npos || name_end == std::string::npos || cookie_end == std::string::npos) {
+                continue;
+            }
+            ++name_start;
+            size_t cookie_start = name_end + 1;
+            if (cookie_start > cookie_end || name_start > name_end) {
+                continue;
+            }
+            cookies[x.substr(name_start, name_end - name_start)] = x.substr(cookie_start, cookie_end - cookie_start);
+        }
+    }
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------
