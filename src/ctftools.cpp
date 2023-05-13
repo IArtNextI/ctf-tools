@@ -210,7 +210,7 @@ ctf::easy::Random::Random() : rnd_(std::chrono::high_resolution_clock::now().tim
 //-------------------------------------------------------------------------------------------------------------------------------
 // easy ~~ ThreadPool subsection
 
-ctf::easy::SpinThreadPool::SpinThreadPool(int count) : count_(count) {
+ctf::easy::SpinThreadPool::SpinThreadPool(int count) : count_(count), terminated_(false) {
 }
 
 void ctf::easy::SpinThreadPool::Start(std::function<SpinThreadPoolStepStatus(int)> fun) {

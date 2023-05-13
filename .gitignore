@@ -1,3 +1,5 @@
 .cache/
 build/
 compile_commands.json
+yo.sh
+custom_tests/

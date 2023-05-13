@@ -115,8 +115,8 @@ namespace ctf {
             // TODO : add shared threads support across multiple pools ?
             // TODO : add launch of thread on Creation of pool, and then give the tasks to the threads ?
             int count_;
+            std::atomic<bool> terminated_;
             std::vector<std::thread> threads_;
-            std::atomic<bool> terminated_ = false;
             // TODO : Gather statistics for each thread
         };
     }

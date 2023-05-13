@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 enable_testing()
 
-option(SANITIZERS "Build with sanitizers" ON)
+option(SANITIZERS "Build with sanitizers" OFF)
 
 if(SANITIZERS)
     message("Sanitizers are enabled. Building with -fsanitize=address -fsanitize=undefined -fsanitize=leak -fno-sanitize-recover")
@@ -23,6 +23,7 @@ target_include_directories(ctftools PUBLIC include)
 
 target_link_libraries(ctftools PUBLIC
     curl
+    pthread
 )
 
 find_package(GTest CONFIG REQUIRED)
@@ -39,3 +40,18 @@ target_link_libraries(test_ctftools
 )
 
 add_test(NAME TestCTFTools COMMAND test_ctftools)
+
+install(TARGETS ctftools
+    EXPORT CTFToolsConfig
+    LIBRARY DESTINATION /usr/lib
+    ARCHIVE DESTINATION /usr/lib
+)
+
+install(FILES include/ctftools/ctftools.hpp
+    DESTINATION /usr/include)
+
+export(TARGETS ctftools
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/CTFToolsConfig.cmake"
+)
+
+install(FILES CTFToolsConfig.cmake DESTINATION lib/cmake/CTFTools)
