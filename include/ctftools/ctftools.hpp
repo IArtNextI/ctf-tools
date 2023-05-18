@@ -119,6 +119,13 @@ namespace ctf {
             std::vector<std::thread> threads_;
             // TODO : Gather statistics for each thread
         };
+
+        namespace crypto {
+            // shift must be an integer in [-25; 25]
+            std::string Caesar(const std::string& s, int shift = 3);
+            std::string Atbash(const std::string& s);
+            std::string Vigenere(const std::string& message, const std::string& key);
+        }
     }
 
     namespace verbose {

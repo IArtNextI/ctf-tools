@@ -4,6 +4,7 @@
 #include <curl/curl.h>
 #include <curl/easy.h>
 #include <memory>
+#include <stdexcept>
 
 //#define CTFTOOLSVERBOSE
 
@@ -236,6 +237,88 @@ void ctf::easy::SpinThreadPool::Wait() {
 
 void ctf::easy::SpinThreadPool::Stop() {
     terminated_ = true;
+}
+
+std::string ctf::easy::crypto::Caesar(const std::string& s, int shift) {
+    if (!shift) return s;
+    if (shift < -25 || shift > 25) return "";
+    if (shift < 0) shift += 26;
+    // shift is now an int [0; 25]
+    std::string result(s.size(), ' ');
+    for (size_t i = 0; i != s.size(); ++i) {
+        int c = s[i];
+        if ('a' <= c && c <= 'z') {
+            c = c - 'a' + shift;
+            if (c >= 26) {
+                c -= 26;
+            }
+            result[i] = c + 'a';
+        }
+        else if ('A' <= c && c <= 'Z') {
+            c = c - 'A' + shift;
+            if (c >= 26) {
+                c -= 26;
+            }
+            result[i] = c + 'A';
+        }
+        else {
+            result[i] = c;
+        }
+    }
+    return std::move(result);
+}
+
+std::string ctf::easy::crypto::Atbash(const std::string& s) {
+    std::string result(s.size(), ' ');
+    for (size_t i = 0; i != s.size(); ++i) {
+        int c = s[i];
+        if ('a' <= c && c <= 'z') {
+            result[i] = (25 - c + 'a') + 'a';
+        }
+        else if ('A' <= c && c <= 'Z') {
+            result[i] = (25 - c + 'A') + 'A';
+        }
+        else {
+            result[i] = c;
+        }
+    }
+    return std::move(result);
+}
+
+std::string ctf::easy::crypto::Vigenere(const std::string& message, const std::string& key) {
+    std::string result(message.size(), ' ');
+    size_t kptr = 0;
+    for (size_t i = 0; i != message.size(); ++i) {
+        if (kptr == key.size()) {
+            kptr = 0;
+        }
+        int c = message[i];
+        int kc = key[kptr++];
+        if ('a' <= kc && kc <= 'z') {
+            kc = kc - 'a';
+        }
+        else if ('A' <= kc && kc <= 'Z') {
+            kc = kc - 'A';
+        }
+        else {
+            return ""; // bad format of key
+        }
+
+        if ('a' <= c && c <= 'z') {
+            c = c - 'a' + kc;
+            if (c >= 26) c -= 26;
+            result[i] = 'a' + c;
+        }
+        else if ('A' <= c && c <= 'Z') {
+            c = c - 'A' + kc;
+            if (c >= 26) c -= 26;
+            result[i] = 'A' + c;
+        }
+        else {
+            result[i] = c;
+        }
+    }
+    return std::move(result);
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------

@@ -3,6 +3,9 @@ project(CTFTools)
 
 set(CMAKE_CXX_STANDARD 17)
 
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
+
 enable_testing()
 
 option(SANITIZERS "Build with sanitizers" OFF)
@@ -19,7 +22,10 @@ add_library(ctftools
     src/ctftools.cpp
 )
 
-target_include_directories(ctftools PUBLIC include)
+target_include_directories(ctftools PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+)
 
 target_link_libraries(ctftools PUBLIC
     curl
@@ -42,16 +48,27 @@ target_link_libraries(test_ctftools
 add_test(NAME TestCTFTools COMMAND test_ctftools)
 
 install(TARGETS ctftools
-    EXPORT CTFToolsConfig
-    LIBRARY DESTINATION /usr/lib
-    ARCHIVE DESTINATION /usr/lib
+        EXPORT CTFToolsConfig
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-install(FILES include/ctftools/ctftools.hpp
-    DESTINATION /usr/include)
+install(FILES include/ctftools/ctftools.hpp DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-export(TARGETS ctftools
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/CTFToolsConfig.cmake"
+install(EXPORT CTFToolsConfig
+        FILE CTFToolsConfig.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CTFTools
 )
 
-install(FILES CTFToolsConfig.cmake DESTINATION lib/cmake/CTFTools)
+# install(TARGETS ctftools
+#     EXPORT CTFToolsConfig DESTINATION lib/cmake/CTFTools
+#     LIBRARY DESTINATION /usr/lib
+#     ARCHIVE DESTINATION /usr/lib
+# )
+
+# install(FILES include/ctftools/ctftools.hpp
+#     DESTINATION /usr/include)
+
+# install(FILES "${CMAKE_CURRENT_BINARY_DIR}/CTFToolsConfig.cmake" DESTINATION lib/cmake/CTFTools)
